@@ -16,6 +16,9 @@ import (
 import (
 	crytporand "crypto/rand"
 	"crypto"
+	"bytes"
+	"io"
+	"strings"
 )
 
 func constructResponse(respText string, signature string) (string,error) {
@@ -35,6 +38,7 @@ func constructResponse(respText string, signature string) (string,error) {
 	digestFromSigConf := h.Sum(nil)
 	aesKey := make([]byte, 16)
 	rand.Read(aesKey)
+	fmt.Println(len(aesKey))
 	publicKeyData, _ := ioutil.ReadFile("publicKeyObject.pem")
 	blockPub, _ := pem.Decode([]byte(publicKeyData))
 	rsaPub, _ := x509.ParsePKIXPublicKey(blockPub.Bytes)
@@ -49,8 +53,9 @@ func constructResponse(respText string, signature string) (string,error) {
 	soapBodyByteCanoned,_ := ExcC14N(soapBodyByte)
 	h2 := sha1.New()
 	h2.Write(soapBodyByteCanoned)
-	soapBodyDigest = h.Sum(nil)
-	soapBodyEncrypted,_ = aesEncrypt(aesKey,[]byte(respText))
+	soapBodyDigest = h2.Sum(nil)
+	soapBodyEncryptedByte,_ := encrypt(aesKey,respText)
+	soapBodyEncrypted = []byte(soapBodyEncryptedByte)
 	fmt.Println(respText)
 	soapResp := SoapEnvelope2{}
 	soapResp.Xmlns = "http://schemas.xmlsoap.org/soap/envelope/"
@@ -115,38 +120,68 @@ func constructResponse(respText string, signature string) (string,error) {
 	soapRespString,_ := xml.MarshalIndent(soapResp,"","")
 	return string(soapRespString),nil
 }
-func aesEncrypt(key, text []byte) ([]byte, error) {
+//func aesEncrypt(key, text []byte) ([]byte, error) {
+//	block, err := aes.NewCipher(key)
+//	if err != nil {
+//		return nil, err
+//	}
+//	//b := base64.StdEncoding.EncodeToString(text)
+//	numBlocks := (len(text)/aes.BlockSize)+1
+//	text,_ = Pad(text,numBlocks*aes.BlockSize)
+//	ciphertext := make([]byte, aes.BlockSize+len(text))
+//	iv := ciphertext[:aes.BlockSize]
+//	cbc := cipher.NewCBCEncrypter(block, iv)
+//	cbc.CryptBlocks(ciphertext[aes.BlockSize:],text)
+//	return ciphertext[aes.BlockSize:], nil
+//}
+
+//func Pad(text []byte, padTo int) ([]byte, error) {
+//	// Check if input is even valid.
+//	if len(text) > padTo-1 {
+//		return nil, nil
+//	}
+//
+//	// Add the compulsory byte of value `1`.
+//	text = append(text, byte(1))
+//
+//	// Determine number of zeros to add.
+//	padLen := padTo - len(text)
+//
+//	// Append the determined number of zeroes to the text.
+//	for n := 1; n <= padLen; n++ {
+//		text = append(text, byte(0))
+//	}
+//
+//	// Return padded byte slice.
+//	return text, nil
+//}
+
+func Pad(src []byte) []byte {
+	fmt.Println(aes.BlockSize )
+	fmt.Println(len(src)%aes.BlockSize)
+	padding := aes.BlockSize - len(src)%aes.BlockSize
+	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
+	return append(src, padtext...)
+}
+func encrypt(key []byte, text string) (string, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	//b := base64.StdEncoding.EncodeToString(text)
-	numBlocks := (len(text)/aes.BlockSize)+1
-	text,_ = Pad(text,numBlocks*aes.BlockSize)
-	ciphertext := make([]byte, aes.BlockSize+len(text))
+	fmt.Println(len(text))
+	msg := Pad([]byte(text))
+	ciphertext := make([]byte, aes.BlockSize+len(msg))
+	fmt.Println(len(msg))
 	iv := ciphertext[:aes.BlockSize]
-	cbc := cipher.NewCBCEncrypter(block, iv)
-	cbc.CryptBlocks(ciphertext[aes.BlockSize:],text)
-	return ciphertext[aes.BlockSize:], nil
+	if _, err := io.ReadFull(crytporand.Reader, iv); err != nil {
+		return "", err
+	}
+
+	cfb := cipher.NewCBCEncrypter(block, iv)
+	cfb.CryptBlocks(ciphertext[aes.BlockSize:], []byte(msg))
+	//finalMsg := removeBase64Padding(base64.URLEncoding.EncodeToString(ciphertext))
+	return string(ciphertext), nil
 }
-
-func Pad(text []byte, padTo int) ([]byte, error) {
-	// Check if input is even valid.
-	if len(text) > padTo-1 {
-		return nil, nil
-	}
-
-	// Add the compulsory byte of value `1`.
-	text = append(text, byte(1))
-
-	// Determine number of zeros to add.
-	padLen := padTo - len(text)
-
-	// Append the determined number of zeroes to the text.
-	for n := 1; n <= padLen; n++ {
-		text = append(text, byte(0))
-	}
-
-	// Return padded byte slice.
-	return text, nil
+func removeBase64Padding(value string) string {
+	return strings.Replace(value, "=", "", -1)
 }
