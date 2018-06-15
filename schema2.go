@@ -4,8 +4,9 @@ import "encoding/xml"
 
 // soap-envelope might require xmlns:xenc attribute
 type SoapEnvelope2 struct {
-	XMLName xml.Name `xml:"http://schemas.xmlsoap.org/soap/envelope/ SOAP-ENV:Envelope"`
-	Xmlns string `xml:"xmlns:SOAP-ENV,attr"`
+	XMLName xml.Name `xml:"SOAP-ENV:Envelope"`
+	Xmlns string `xml:"xmlns:SOAP-ENV,attr,omitempty"`
+	XmlnsXenc string `xml:"xmlns:xenc,attr,omitempty"`
 	Header  SoapHeader2
 	Body    SoapBody2
 }
@@ -157,8 +158,8 @@ type SignatureConfirmation struct {
 	XMLName xml.Name `xml:"wsse11:SignatureConfirmation"`
 	Xmlns string `xml:"xmlns:wsse11,attr"`
 	WsuNs string `xml:"xmlns:wsu,attr"`
-	Value string `xml:"Value,attr,omitempty"`
 	WsuId string `xml:"wsu:Id,attr"`
+	Value string `xml:"Value,attr,omitempty"`
 
 }
 type EncryptedData2 struct {

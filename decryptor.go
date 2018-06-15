@@ -110,8 +110,6 @@ func processXML(byteXML []byte) (string,[]byte,[]byte,string,error) {
 	h := sha1.New()
 	h.Write(decryptedBodyCanon)
 	digestFromBody := h.Sum(nil)
-	fmt.Println(base64.StdEncoding.EncodeToString(digestFromBody))
-	fmt.Println(string(digest))
 	if bytes.Compare(digest,digestFromBody)!=0 {
 		//panic("Digest wrong!")
 	}
