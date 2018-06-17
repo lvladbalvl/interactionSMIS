@@ -1,4 +1,4 @@
-package main
+package smisInteract
 type Stack struct {
 	data []interface{}
 }

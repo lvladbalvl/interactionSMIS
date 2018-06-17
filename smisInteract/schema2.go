@@ -1,4 +1,4 @@
-package main
+package smisInteract
 
 import "encoding/xml"
 
@@ -158,8 +158,8 @@ type SignatureConfirmation struct {
 	XMLName xml.Name `xml:"wsse11:SignatureConfirmation"`
 	Xmlns string `xml:"xmlns:wsse11,attr"`
 	WsuNs string `xml:"xmlns:wsu,attr"`
-	WsuId string `xml:"wsu:Id,attr"`
 	Value string `xml:"Value,attr,omitempty"`
+	WsuId string `xml:"wsu:Id,attr"`
 
 }
 type EncryptedData2 struct {
