@@ -35,25 +35,31 @@ func ProcessXML(byteXML []byte) (string,[]byte,*rsa.PublicKey,string,error) {
 		smisError = err
 		panic(smisError)
 	}
+	// check digest and signature
 	signatureb64,publicKey,smisErrorMessage,smisError:=checkDigestAndSignature(soapEnvStructure,byteXML)
 	if smisError!= nil {
 		panic(smisError)
 	}
-	// aes key is in the header inside encrypted key tag
 	messageDecrypted,smisErrorMessage,smisError := decryptSoapBody(soapEnvStructure)
-
-	//_ = ioutil.WriteFile("signedInfoCanon.bin",[]byte(signedInfoCanon),0644)
 	return messageDecrypted,signatureb64,publicKey, smisErrorMessage, smisError
 }
 
 
 	func checkDigestAndSignature(soapEnvStructure SoapEnvelope, byteXML []byte) (signatureb64 []byte,rsaPublicKey *rsa.PublicKey, smisErrorMessage string, smisError error) {
+		// get signature and b64 decode
 		signature := soapEnvStructure.Header.Security.Signature.SignatureValue.Contents
 		signatureb64=[]byte(strings.Replace(strings.Replace(string(signature), "\t", "", -1),"\r\n","",-1))
 		signatureb64Decoded := make([]byte, base64.StdEncoding.DecodedLen(len(signatureb64)))
 		n2,_ := base64.StdEncoding.Decode(signatureb64Decoded, signatureb64)
+		// get digest and b64 decode. SUITABLE FOR ONLY ONE DIGEST PER MESSAGE. IF THE MESSAGE WOULD BE DIFFERENT - NEED TO REWRITE CODE TO USE REFERENCES
 		digest := soapEnvStructure.Header.Security.Signature.SignedInfo.Reference.DigestValue.Contents
-		cipheredBody,_ := getSoapBody(byteXML)
+		// get soap body. the digest is calculated from the encrypred soap-body.
+		cipheredBody,smisError := getSoapBody(byteXML)
+		if smisError!=nil {
+			smisErrorMessage = "Wrong XML format"
+			panic(smisError)
+		}
+		// xml-exc-c14n first and then compute hash and compare
 		cipheredBodyCanon := ExcC14N(cipheredBody)
 		h := sha1.New()
 		h.Write(cipheredBodyCanon)
@@ -63,12 +69,17 @@ func ProcessXML(byteXML []byte) (string,[]byte,*rsa.PublicKey,string,error) {
 			smisError = fmt.Errorf("%s",smisErrorMessage)
 			panic(smisError)
 		}
-		signedInfo,_ := getSignedInfo(byteXML)
+		// now get signed info. the signature is checked first via the digest of canonicalized signed info
+		signedInfo,smisError := getSignedInfo(byteXML)
+		if smisError!=nil {
+			smisErrorMessage = "Wrong XML format"
+			panic(smisError)
+		}
 		signedInfoCanon := ExcC14N([]byte(signedInfo))
 		h2 := sha1.New()
 		h2.Write(signedInfoCanon)
 		digestFromSignedInfo := h2.Sum(nil)
-		//add read from settings
+		//get certificate from message and get public key from it
 		certBytes :=soapEnvStructure.Header.Security.BinarySecurityToken.Contents
 		certBlock := make([]byte, base64.StdEncoding.DecodedLen(len(certBytes)))
 		n, err := base64.StdEncoding.Decode(certBlock, certBytes)
@@ -79,6 +90,7 @@ func ProcessXML(byteXML []byte) (string,[]byte,*rsa.PublicKey,string,error) {
 			panic(smisError)
 		}
 		rsaPublicKey = cert.PublicKey.(*rsa.PublicKey)
+		// verify signature
 		err = rsa.VerifyPKCS1v15(rsaPublicKey, crypto.SHA1, digestFromSignedInfo,signatureb64Decoded[:n2])
 		if err!=nil {
 			smisErrorMessage = "Signature wrong!"
@@ -89,7 +101,7 @@ func ProcessXML(byteXML []byte) (string,[]byte,*rsa.PublicKey,string,error) {
 	}
 
 	func decryptSoapBody(soapEnvStructure SoapEnvelope) (message string, smisErrorMessage string, smisError error) {
-
+		// aes key is in the header inside encrypted key tag
 		aesKeyEncrypted := soapEnvStructure.Header.Security.EncryptedKey.CipherData.CipherValue.Contents
 		// check if did not find a key. Probably because the xml structure does not fit the structure from schema.go
 
