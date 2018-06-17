@@ -5,7 +5,7 @@ import (
 	"regexp"
 )
 
-func ExcC14N(xmlText []byte) ([]byte,error) {
+func ExcC14N(xmlText []byte) ([]byte) {
 	//var nameSpace string
 	xmlnsFound := false
 	//var addToEnd string
@@ -79,33 +79,8 @@ func ExcC14N(xmlText []byte) ([]byte,error) {
 		}
 		xmlToCanonString = xmlToCanonString[:idx] + textToInsert + ">" + xmlToCanonString[idx+len(toks):]
 	}
-	//idx = strings.Index(xmlToCanonString,string(res2[0]))
-	//tokNs=strings.Split(xmlToCanonString[idx:idx+len(res2[0])],":")[0]
-	//tokParts=strings.Split(xmlToCanonString[idx:idx+len(res2[0])]," ")
-	//var tokAttrsAndEnd string
-	//if len(tokParts)>1 {
-	//	tokAttrsAndEnd = " "+strings.Join(tokParts[1:]," ")
-	//	tokAttrsAndEnd = tokAttrsAndEnd[:len(tokAttrsAndEnd)-1]
-	//} else {
-	//	tokParts[0]=tokParts[0][:len(tokParts[0])-1]
-	//}
-	//nameSpace=nameSpacesMap[tokNs[1:]]
-	//xmlnsAttr=" xmlns:"+tokNs[1:]+"=\""+nameSpace+"\""
-
-	//r := regexp.MustCompile(`<(.*?)?/>`)
-	//res := r.FindAll([]byte(xmlToCanonString),-1)
-	//
-	//for _,toks := range res {
-	//	fmt.Println(string(toks))
-	//	idx = strings.Index(xmlToCanonString,string(toks))
-	//	tokName=strings.Split(xmlToCanonString[idx:idx+len(toks)]," ")
-	//	if len(xmlToCanonString)>idx+len(toks) {
-	//		addToEnd = xmlToCanonString[idx+len(toks)+1:]
-	//	}
-	//	xmlToCanonString= xmlToCanonString[:idx]+xmlToCanonString[idx:idx+len(toks)-2]+"></"+tokName[0][1:]+">"+addToEnd
-	//}
 	xmlToCanonString=strings.Replace(xmlToCanonString,"\r\n","\n",-1)
 
-	return []byte(xmlToCanonString),nil
+	return []byte(xmlToCanonString)
 }
 

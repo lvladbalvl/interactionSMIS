@@ -68,41 +68,6 @@ func ConstructResponse(respText string, signature string,rsaPublicKey *rsa.Publi
 	soapRespString,_ := xml.MarshalIndent(soapResp,"","")
 	return string(soapRespString),nil
 }
-//func aesEncrypt(key, text []byte) ([]byte, error) {
-//	block, err := aes.NewCipher(key)
-//	if err != nil {
-//		return nil, err
-//	}
-//	//b := base64.StdEncoding.EncodeToString(text)
-//	numBlocks := (len(text)/aes.BlockSize)+1
-//	text,_ = Pad(text,numBlocks*aes.BlockSize)
-//	ciphertext := make([]byte, aes.BlockSize+len(text))
-//	iv := ciphertext[:aes.BlockSize]
-//	cbc := cipher.NewCBCEncrypter(block, iv)
-//	cbc.CryptBlocks(ciphertext[aes.BlockSize:],text)
-//	return ciphertext[aes.BlockSize:], nil
-//}
-
-//func Pad(text []byte, padTo int) ([]byte, error) {
-//	// Check if input is even valid.
-//	if len(text) > padTo-1 {
-//		return nil, nil
-//	}
-//
-//	// Add the compulsory byte of value `1`.
-//	text = append(text, byte(1))
-//
-//	// Determine number of zeros to add.
-//	padLen := padTo - len(text)
-//
-//	// Append the determined number of zeroes to the text.
-//	for n := 1; n <= padLen; n++ {
-//		text = append(text, byte(0))
-//	}
-//
-//	// Return padded byte slice.
-//	return text, nil
-//}
 
 func Pad(src []byte) []byte {
 	padding := aes.BlockSize - len(src)%aes.BlockSize
@@ -121,9 +86,8 @@ func encrypt(key []byte, text string) (string, error) {
 		return "", err
 	}
 
-	cfb := cipher.NewCBCEncrypter(block, iv)
-	cfb.CryptBlocks(ciphertext[aes.BlockSize:], []byte(msg))
-	//finalMsg := removeBase64Padding(base64.URLEncoding.EncodeToString(ciphertext))
+	cbc := cipher.NewCBCEncrypter(block, iv)
+	cbc.CryptBlocks(ciphertext[aes.BlockSize:], []byte(msg))
 	return string(ciphertext), nil
 }
 func processSigConf(signature string) (sigConf SignatureConfirmation, digestFromSigConf []byte) {
@@ -132,7 +96,7 @@ func processSigConf(signature string) (sigConf SignatureConfirmation, digestFrom
 	sigConf.Xmlns = "http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd"
 	sigConf.WsuId = "SigConf-"+fmt.Sprintf("%05d",rand.Intn(9999))
 	sigConfString,_ := xml.MarshalIndent(sigConf,"","")
-	sigConfStringC14N,_ := ExcC14N(sigConfString)
+	sigConfStringC14N := ExcC14N(sigConfString)
 	h := sha1.New()
 	h.Write(sigConfStringC14N)
 	digestFromSigConf = h.Sum(nil)
@@ -147,7 +111,7 @@ func encryptMsg(rsaPublicKey *rsa.PublicKey,respText string) (soapBodyEncrypted 
 	soapBody.WsuId = "id-"+fmt.Sprintf("%05d",rand.Intn(9999))
 	soapBody.Contents = []byte(respText)
 	soapBodyByte,_ := xml.MarshalIndent(soapBody,"","")
-	soapBodyByteCanoned,_ := ExcC14N(soapBodyByte)
+	soapBodyByteCanoned := ExcC14N(soapBodyByte)
 	h2 := sha1.New()
 	h2.Write(soapBodyByteCanoned)
 	soapBodyDigest = h2.Sum(nil)
@@ -165,7 +129,6 @@ func genSignature(soapResp SoapEnvelope2,soapBodyEncrypted []byte) (EncrDataByte
 	EncrData.KeyInfo.SecurityTokenReference.Xmlns = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
 	//maybe generate Id in separate variable
 	EncrData.KeyInfo.SecurityTokenReference.Reference.URI = soapResp.Header.Security.EncryptedKey.Id
-	//maybe Reference needs also xmlns declaration
 	EncrData.CipherData.CipherValue.Contents = []byte(base64.StdEncoding.EncodeToString(soapBodyEncrypted))
 	EncrDataByte,_ = xml.Marshal(EncrData)
 	privateKeyData, _ := ioutil.ReadFile(pathToPrivateKey)
@@ -173,7 +136,7 @@ func genSignature(soapResp SoapEnvelope2,soapBodyEncrypted []byte) (EncrDataByte
 	var pri *rsa.PrivateKey
 	pri, _ = x509.ParsePKCS1PrivateKey(privateKeyBlock.Bytes)
 	signedInfo,_ := xml.MarshalIndent(soapResp.Header.Security.Signature.SignedInfo,"","")
-	signedInfoCanoned,_ := ExcC14N(signedInfo)
+	signedInfoCanoned := ExcC14N(signedInfo)
 	h3 := sha1.New()
 	h3.Write(signedInfoCanoned)
 	digestFromSignedInfo := h3.Sum(nil)

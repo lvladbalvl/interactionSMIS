@@ -54,7 +54,7 @@ func ProcessXML(byteXML []byte) (string,[]byte,*rsa.PublicKey,string,error) {
 		n2,_ := base64.StdEncoding.Decode(signatureb64Decoded, signatureb64)
 		digest := soapEnvStructure.Header.Security.Signature.SignedInfo.Reference.DigestValue.Contents
 		cipheredBody,_ := getSoapBody(byteXML)
-		cipheredBodyCanon,_ := ExcC14N(cipheredBody)
+		cipheredBodyCanon := ExcC14N(cipheredBody)
 		h := sha1.New()
 		h.Write(cipheredBodyCanon)
 		digestFromBody := h.Sum(nil)
@@ -64,7 +64,7 @@ func ProcessXML(byteXML []byte) (string,[]byte,*rsa.PublicKey,string,error) {
 			panic(smisError)
 		}
 		signedInfo,_ := getSignedInfo(byteXML)
-		signedInfoCanon,_ := ExcC14N([]byte(signedInfo))
+		signedInfoCanon := ExcC14N([]byte(signedInfo))
 		h2 := sha1.New()
 		h2.Write(signedInfoCanon)
 		digestFromSignedInfo := h2.Sum(nil)
