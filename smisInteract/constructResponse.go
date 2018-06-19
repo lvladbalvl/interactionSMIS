@@ -19,6 +19,7 @@ import (
 )
 
 const pathToPrivateKey string = "./privateKey.pem"
+const serverCert string = "MIIDWTCCAkGgAwIBAgIRAIf39GOHSk0bvUWn/N0sGskwDQYJKoZIhvcNAQENBQAwIjELMAkGA1UEBhMCUlUxEzARBgNVBAMMCtCh0YLQtdC90LQwHhcNMTgwNDIwMDUyMTMzWhcNMTkxMjMxMjEwMDAwWjAiMQswCQYDVQQGEwJSVTETMBEGA1UEAwwK0KHRgtC10L3QtDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAJkrlaphIDd6Q63WOvwJZ4nckllRu8w0yg0IEl8fi6PS7nv1xwND4rQiVPHb08v+aVNpxC6+Lthx97D6qz8qaJc0zS/EDV8NY+VTrbXAZbxoJT4oLtE2z8uszaUEDtQCGlz79qcCfsGeSulOyfHXlJWMLy/zXPFHwvfcoL2iM+NOSo12Icw9etehLNCm5pOZ4INwQj0PnJ6rzC4epjf+j8U8tF+oJhb0DrQyihqgojMIJNe5wX2iGerA8NOcgiUWq6cSgJH0t/lePO3mcQgUauje3EsnCuLIYWiMH20WY08Z3xYNn33WKeWfK2mSFlrYf6gKIz+aWG+oEmDxgEfHaH8CAwEAAaOBiTCBhjAMBgNVHRMBAf8EAjAAMCAGA1UdDgEB/wQWBBThGTpSygr8MMwAhOFOnwH6NfL0xzAiBgNVHSMBAf8EGDAWgBThGTpSygr8MMwAhOFOnwH6NfL0xzAOBgNVHQ8BAf8EBAMCBLAwIAYDVR0lAQH/BBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMA0GCSqGSIb3DQEBDQUAA4IBAQBd/IaZleMlR4QbWX7e0iuJvbyJ6Gid4wVOxo8ckXwncbnpR/02QrnY7w3WTiqZb8SNYz9jjODHXlozxwTiSTQBbxqxz1dDM3K2WOIL8YeOO0xLIddJfnkOkrcUXDim2eCfMe9jBxoG27AlIfWkzCYC3yGkqLxjebohEjRww5/5s3dk0N0eJuRBEgfpRabCu3X4QBNEfaYQZHX43foofjWGVRw9keHBYlNTTYjuSG0G88ITDu++dlQdwDvWrDpavdABp780aM375y6q4wvDUCCIgXtaXwbBbyAu73Hi0pgKJ+Lt624xERwTYxANBwHwPhsaLp2m5qQ8XHcPmf90lDtc"
 
 func ConstructResponse(respText string, signature string,rsaPublicKey *rsa.PublicKey) (string,error) {
 
@@ -35,16 +36,16 @@ func ConstructResponse(respText string, signature string,rsaPublicKey *rsa.Publi
 	soapResp.Header.Security.EncryptedKey.Id = "EncKeyId-C5619879ACACCFA2FB152827572172050155"
 	soapResp.Header.Security.EncryptedKey.EncryptionMethod.Algorithm = "http://www.w3.org/2001/04/xmlenc#rsa-1_5"
 	soapResp.Header.Security.EncryptedKey.KeyInfo.Xmlns = "http://www.w3.org/2000/09/xmldsig#"
-	soapResp.Header.Security.EncryptedKey.CipherData.CipherValue.Contents = []byte(aesKeyEncryptedB64)
 	soapResp.Header.Security.EncryptedKey.ReferenceList.DataReference.URI = "#EncDataId-"+fmt.Sprintf("%05d",rand.Intn(9999))
 	soapResp.Header.Security.EncryptedKey.KeyInfo.SecurityTokenReference.Xmlns = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
 	soapResp.Header.Security.EncryptedKey.KeyInfo.SecurityTokenReference.KeyIdentifier.EncodingType = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary"
 	soapResp.Header.Security.EncryptedKey.KeyInfo.SecurityTokenReference.KeyIdentifier.ValueType = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3"
-	soapResp.Header.Security.EncryptedKey.KeyInfo.SecurityTokenReference.KeyIdentifier.Contents = []byte("MIIDWTCCAkGgAwIBAgIRAIf39GOHSk0bvUWn/N0sGskwDQYJKoZIhvcNAQENBQAwIjELMAkGA1UEBhMCUlUxEzARBgNVBAMMCtCh0YLQtdC90LQwHhcNMTgwNDIwMDUyMTMzWhcNMTkxMjMxMjEwMDAwWjAiMQswCQYDVQQGEwJSVTETMBEGA1UEAwwK0KHRgtC10L3QtDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAJkrlaphIDd6Q63WOvwJZ4nckllRu8w0yg0IEl8fi6PS7nv1xwND4rQiVPHb08v+aVNpxC6+Lthx97D6qz8qaJc0zS/EDV8NY+VTrbXAZbxoJT4oLtE2z8uszaUEDtQCGlz79qcCfsGeSulOyfHXlJWMLy/zXPFHwvfcoL2iM+NOSo12Icw9etehLNCm5pOZ4INwQj0PnJ6rzC4epjf+j8U8tF+oJhb0DrQyihqgojMIJNe5wX2iGerA8NOcgiUWq6cSgJH0t/lePO3mcQgUauje3EsnCuLIYWiMH20WY08Z3xYNn33WKeWfK2mSFlrYf6gKIz+aWG+oEmDxgEfHaH8CAwEAAaOBiTCBhjAMBgNVHRMBAf8EAjAAMCAGA1UdDgEB/wQWBBThGTpSygr8MMwAhOFOnwH6NfL0xzAiBgNVHSMBAf8EGDAWgBThGTpSygr8MMwAhOFOnwH6NfL0xzAOBgNVHQ8BAf8EBAMCBLAwIAYDVR0lAQH/BBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMA0GCSqGSIb3DQEBDQUAA4IBAQBd/IaZleMlR4QbWX7e0iuJvbyJ6Gid4wVOxo8ckXwncbnpR/02QrnY7w3WTiqZb8SNYz9jjODHXlozxwTiSTQBbxqxz1dDM3K2WOIL8YeOO0xLIddJfnkOkrcUXDim2eCfMe9jBxoG27AlIfWkzCYC3yGkqLxjebohEjRww5/5s3dk0N0eJuRBEgfpRabCu3X4QBNEfaYQZHX43foofjWGVRw9keHBYlNTTYjuSG0G88ITDu++dlQdwDvWrDpavdABp780aM375y6q4wvDUCCIgXtaXwbBbyAu73Hi0pgKJ+Lt624xERwTYxANBwHwPhsaLp2m5qQ8XHcPmf90lDtc")
+	soapResp.Header.Security.EncryptedKey.KeyInfo.SecurityTokenReference.KeyIdentifier.Contents = []byte(serverCert)
 	soapResp.Header.Security.Signature.Xmlns = "http://www.w3.org/2000/09/xmldsig#"
 	soapResp.Header.Security.Signature.ID = "Signature-"+fmt.Sprintf("%05d",rand.Intn(9999))
 	soapResp.Header.Security.Signature.SignedInfo.CanonicalizationMethod.Algorithm = "http://www.w3.org/2001/10/xml-exc-c14n#"
 	soapResp.Header.Security.Signature.SignedInfo.SignatureMethod.Algorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
+	// meybe add random gen of the key id later
 	soapResp.Header.Security.Signature.KeyInfo.ID = "KeyId-C5619879ACACCFA2FB152827572170250152"
 	soapResp.Header.Security.Signature.KeyInfo.SecurityTokenReference.Xmlns = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
 	soapResp.Header.Security.Signature.KeyInfo.SecurityTokenReference.WsuNs = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
@@ -60,8 +61,9 @@ func ConstructResponse(respText string, signature string,rsaPublicKey *rsa.Publi
 	soapBody.Contents = EncrDataByte
 	soapResp.Body = soapBody
 	// fill in all rematinin fields of the signed info and then sign it
+	soapResp.Header.Security.EncryptedKey.CipherData.CipherValue.Contents = []byte(aesKeyEncryptedB64)
 	soapResp.Header.Security.SignatureConfirmation = sigConf
-	soapResp.Header.Security.Signature.SignatureValue.Contents = []byte(base64.StdEncoding.EncodeToString(signatureResp))
+
 	soapResp.Header.Security.Signature.SignedInfo.Reference = make([]Reference3,2)
 	soapResp.Header.Security.Signature.SignedInfo.Reference[0].URI = "#"+soapBody.WsuId
 	soapResp.Header.Security.Signature.SignedInfo.Reference[0].Transforms.Transform.Algorithm = "http://www.w3.org/2001/10/xml-exc-c14n#"
@@ -72,8 +74,8 @@ func ConstructResponse(respText string, signature string,rsaPublicKey *rsa.Publi
 	soapResp.Header.Security.Signature.SignedInfo.Reference[1].DigestMethod.Algorithm = "http://www.w3.org/2000/09/xmldsig#sha1"
 	soapResp.Header.Security.Signature.SignedInfo.Reference[1].DigestValue.Contents = []byte(base64.StdEncoding.EncodeToString(digestFromSigConf))
 	// generating signature via signed info digest. signed info will be taken from soapResp
-	signatureResp = genSignature(soapResp,soapBodyEncrypted)
-
+	signatureResp = genSignature(soapResp)
+	soapResp.Header.Security.Signature.SignatureValue.Contents = []byte(base64.StdEncoding.EncodeToString(signatureResp))
 	soapRespString,_ := xml.MarshalIndent(soapResp,"","")
 	return string(soapRespString),nil
 }
@@ -139,7 +141,7 @@ func encryptMsg(soapResp SoapEnvelope2,rsaPublicKey *rsa.PublicKey,respText stri
 	EncrDataByte,_ = xml.Marshal(EncrData)
 	return
 }
-func genSignature(soapResp SoapEnvelope2,soapBodyEncrypted []byte) (signatureResp []byte) {
+func genSignature(soapResp SoapEnvelope2) (signatureResp []byte) {
 	privateKeyData, _ := ioutil.ReadFile(pathToPrivateKey)
 	privateKeyBlock, _ := pem.Decode(privateKeyData)
 	var pri *rsa.PrivateKey

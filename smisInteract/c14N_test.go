@@ -15,7 +15,7 @@ func TestXMLsignedInfoCanon(t *testing.T) {
 	defer xmlFileExpected.Close()
 	xmlToCanon,_ := ioutil.ReadAll(xmlFileBeforeCanon)
 	exptectedXML, _ := ioutil.ReadAll(xmlFileExpected)
-	canonedXML,_ := ExcC14N(xmlToCanon)
+	canonedXML := ExcC14N(xmlToCanon)
 	asserter.Equal( string(exptectedXML),string(canonedXML), "The two xml docs should be the same.")
 }
 func TestXMLBodyCanon(t *testing.T) {
@@ -26,7 +26,7 @@ func TestXMLBodyCanon(t *testing.T) {
 	defer xmlFileExpected.Close()
 	xmlToCanon,_ := ioutil.ReadAll(xmlFileBeforeCanon)
 	exptectedXML, _ := ioutil.ReadAll(xmlFileExpected)
-	canonedXML,_ := ExcC14N(xmlToCanon)
+	canonedXML := ExcC14N(xmlToCanon)
 	asserter.Equal( string(exptectedXML), string(canonedXML), "The two xml docs should be the same.")
 
 }
@@ -38,19 +38,19 @@ func TestXMLSigConf(t *testing.T) {
 	defer xmlFileExpected.Close()
 	xmlToCanon,_ := ioutil.ReadAll(xmlFileBeforeCanon)
 	exptectedXML, _ := ioutil.ReadAll(xmlFileExpected)
-	canonedXML,_ := ExcC14N(xmlToCanon)
+	canonedXML := ExcC14N(xmlToCanon)
 	asserter.Equal( string(exptectedXML), string(canonedXML), "The two xml docs should be the same.")
 
 }
 func TestXMLSoapBodyCiphered(t *testing.T) {
 	asserter := assert.New(t)
-	xmlFileBeforeCanon, _ := os.Open("beforeCanonCipheredBody.xml")
+	xmlFileBeforeCanon, _ := os.Open("soapBodytempl.xml")
 	defer xmlFileBeforeCanon.Close()
-	xmlFileExpected, _ := os.Open("afterCanonCipheredBody.xml")
+	xmlFileExpected, _ := os.Open("soapBodytemplTest.xml")
 	defer xmlFileExpected.Close()
 	xmlToCanon,_ := ioutil.ReadAll(xmlFileBeforeCanon)
 	exptectedXML, _ := ioutil.ReadAll(xmlFileExpected)
-	canonedXML,_ := ExcC14N(xmlToCanon)
+	canonedXML := ExcC14N(xmlToCanon)
 	asserter.Equal( string(exptectedXML), string(canonedXML), "The two xml docs should be the same.")
 
 }

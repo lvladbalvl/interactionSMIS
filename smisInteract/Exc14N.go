@@ -70,11 +70,12 @@ func ExcC14N(xmlText []byte) ([]byte) {
 			continue
 		}
 		if !strings.Contains(string(toks),`/>`) {
-
 			parentNsStack.Push(tokNsCur)
 		} else {
 			tokName=strings.Split(xmlToCanonString[idx:idx+len(toks)]," ")
-			textToInsert = textToInsert[:len(textToInsert)-1]
+			if string(textToInsert[len(textToInsert)-1])=="/" {
+				textToInsert = textToInsert[:len(textToInsert)-1]
+			}
 			textToInsert += "></"+tokName[0][1:]
 		}
 		xmlToCanonString = xmlToCanonString[:idx] + textToInsert + ">" + xmlToCanonString[idx+len(toks):]
