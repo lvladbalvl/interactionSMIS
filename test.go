@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"awesomeProject/smisInteract"
+	"github.com/pkg/profile"
 )
 
 
 
 func main() {
+	defer profile.Start(profile.CPUProfile).Stop()
 	http.HandleFunc("/", handlerCustom)
 	// Start the HTTPS server in a goroutine
 	//go http.ListenAndServeTLS(":8081", "cert.pem", "key.pem", nil)

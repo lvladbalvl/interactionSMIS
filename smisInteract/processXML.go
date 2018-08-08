@@ -8,18 +8,18 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
-	"encoding/xml"
 	"fmt"
 	"io/ioutil"
 	"strings"
 	"crypto/sha1"
 	"crypto"
+	"regexp"
 )
 
 
 
-func ProcessXML(byteXML []byte) (string,[]byte,*rsa.PublicKey,string,error) {
-	soapEnvStructure := SoapEnvelope{} // init a structure from schema.go fully designed for the SOAP wsse input from SMIS object. not mutable for other SOAP inputs
+func ProcessXML(byteXML []byte) (string,[]byte,[]byte,string,error) {
+	//soapEnvStructure := SoapEnvelope{} // init a structure from schema.go fully designed for the SOAP wsse input from SMIS object. not mutable for other SOAP inputs
 	var smisErrorMessage string  // init separately my error message and message from libs
 	var smisError error
 	defer func() {
@@ -30,29 +30,62 @@ func ProcessXML(byteXML []byte) (string,[]byte,*rsa.PublicKey,string,error) {
 	}()
 
 	// unmarshal xml - fills the fields of soapEnvStructure from xmlfile ([]byte required)
-	if err := xml.Unmarshal(byteXML, &soapEnvStructure); err != nil {
-		smisErrorMessage = "wrong XML format"
-		smisError = err
+	//if err := xml.Unmarshal(byteXML, &soapEnvStructure); err != nil {
+	//	smisErrorMessage = "wrong XML format"
+	//	smisError = err
+	//	panic(smisError)
+	//}
+	// check digest and signature
+
+	digest,signature,certBytes,aesKeyEncrypted,cipheredText := getNecessaryFields(byteXML)
+	//digest := soapEnvStructure.Header.Security.Signature.SignedInfo.Reference.DigestValue.Contents
+	//signature := soapEnvStructure.Header.Security.Signature.SignatureValue.Contents
+	//get certificate from message and get public key from it
+	//certBytes :=soapEnvStructure.Header.Security.BinarySecurityToken.Contents
+	//aesKeyEncrypted := soapEnvStructure.Header.Security.EncryptedKey.CipherData.CipherValue.Contents
+	//cipheredText := soapEnvStructure.Body.EncryptedData.CipherData.CipherValue.Contents
+	certBlock := make([]byte, base64.StdEncoding.DecodedLen(len(certBytes)))
+	n, err := base64.StdEncoding.Decode(certBlock, certBytes)
+	cert,err := x509.ParseCertificate(certBlock[:n])
+	if err!=nil {
+		smisErrorMessage = "Wrong certificate in message!"
+		smisError = fmt.Errorf("%s",smisErrorMessage)
 		panic(smisError)
 	}
-	// check digest and signature
-	signatureb64,publicKey,smisErrorMessage,smisError:=checkDigestAndSignature(soapEnvStructure,byteXML)
+	//fmt.Println(cert.SignatureAlgorithm.String())
+	//err =cert.CheckSignatureFrom(cert)
+	//fmt.Println(err)
+	rsaPublicKey := cert.PublicKey.(*rsa.PublicKey)
+	err =cert.CheckSignature(cert.SignatureAlgorithm,cert.RawTBSCertificate,cert.Signature)
+	fmt.Println(err)
+	signatureb64,smisErrorMessage,smisError:=checkDigestAndSignature(signature,digest,byteXML,rsaPublicKey)
 	if smisError!= nil {
 		panic(smisError)
 	}
-	messageDecrypted,smisErrorMessage,smisError := decryptSoapBody(soapEnvStructure)
-	return messageDecrypted,signatureb64,publicKey, smisErrorMessage, smisError
+
+	// aes key is in the header inside encrypted key tag
+
+	// check if did not find a key.
+
+	if len(aesKeyEncrypted)<1 {
+		smisErrorMessage = "could not find aes key"
+		smisError = fmt.Errorf("%s",smisErrorMessage)
+		panic(smisErrorMessage)
+	}
+
+
+	messageDecrypted,smisErrorMessage,smisError := decryptSoapBody(aesKeyEncrypted,cipheredText)
+	return messageDecrypted,signatureb64,certBytes, smisErrorMessage, smisError
 }
 
 
-	func checkDigestAndSignature(soapEnvStructure SoapEnvelope, byteXML []byte) (signatureb64 []byte,rsaPublicKey *rsa.PublicKey, smisErrorMessage string, smisError error) {
+	func checkDigestAndSignature(signature []byte,digest []byte, byteXML []byte,rsaPublicKey *rsa.PublicKey) (signatureb64 []byte, smisErrorMessage string, smisError error) {
 		// get signature and b64 decode
-		signature := soapEnvStructure.Header.Security.Signature.SignatureValue.Contents
 		signatureb64=[]byte(strings.Replace(strings.Replace(string(signature), "\t", "", -1),"\r\n","",-1))
 		signatureb64Decoded := make([]byte, base64.StdEncoding.DecodedLen(len(signatureb64)))
 		n2,_ := base64.StdEncoding.Decode(signatureb64Decoded, signatureb64)
 		// get digest and b64 decode. SUITABLE FOR ONLY ONE DIGEST PER MESSAGE. IF THE MESSAGE WOULD BE DIFFERENT - NEED TO REWRITE CODE TO USE REFERENCES
-		digest := soapEnvStructure.Header.Security.Signature.SignedInfo.Reference.DigestValue.Contents
+
 		// get soap body. the digest is calculated from the encrypred soap-body.
 		cipheredBody,smisError := getSoapBody(byteXML)
 		if smisError!=nil {
@@ -79,37 +112,19 @@ func ProcessXML(byteXML []byte) (string,[]byte,*rsa.PublicKey,string,error) {
 		h2 := sha1.New()
 		h2.Write(signedInfoCanon)
 		digestFromSignedInfo := h2.Sum(nil)
-		//get certificate from message and get public key from it
-		certBytes :=soapEnvStructure.Header.Security.BinarySecurityToken.Contents
-		certBlock := make([]byte, base64.StdEncoding.DecodedLen(len(certBytes)))
-		n, err := base64.StdEncoding.Decode(certBlock, certBytes)
-		cert,err := x509.ParseCertificate(certBlock[:n])
-		if err!=nil {
-			smisErrorMessage = "Wrong certificate in message!"
-			smisError = fmt.Errorf("%s",smisErrorMessage)
-			panic(smisError)
-		}
-		rsaPublicKey = cert.PublicKey.(*rsa.PublicKey)
+
 		// verify signature
-		err = rsa.VerifyPKCS1v15(rsaPublicKey, crypto.SHA1, digestFromSignedInfo,signatureb64Decoded[:n2])
+		err := rsa.VerifyPKCS1v15(rsaPublicKey, crypto.SHA1, digestFromSignedInfo,signatureb64Decoded[:n2])
 		if err!=nil {
 			smisErrorMessage = "Signature wrong!"
-			smisError = fmt.Errorf("%s",smisErrorMessage)
+			smisError = err
 			panic(smisError)
 		}
 		return
 	}
 
-	func decryptSoapBody(soapEnvStructure SoapEnvelope) (message string, smisErrorMessage string, smisError error) {
-		// aes key is in the header inside encrypted key tag
-		aesKeyEncrypted := soapEnvStructure.Header.Security.EncryptedKey.CipherData.CipherValue.Contents
-		// check if did not find a key. Probably because the xml structure does not fit the structure from schema.go
+	func decryptSoapBody(aesKeyEncrypted []byte,cipheredText []byte) (message string, smisErrorMessage string, smisError error) {
 
-		if len(aesKeyEncrypted)<1 {
-			smisErrorMessage = "could not find aes key"
-			smisError = fmt.Errorf("%s",smisErrorMessage)
-			panic(smisErrorMessage)
-		}
 		// read private key from file, parse it (pem.decode) and make a x509 private key structure
 		privateKeyData, err := ioutil.ReadFile(pathToPrivateKey)
 		privateKeyBlock, _ := pem.Decode(privateKeyData)
@@ -137,7 +152,7 @@ func ProcessXML(byteXML []byte) (string,[]byte,*rsa.PublicKey,string,error) {
 			panic(smisErrorMessage)
 		}
 		// xml unmarshals encrypted body with tab inside - so let's make it string, replace tabs and make []byte again
-		ciphertextb64 := []byte(strings.Replace(string(soapEnvStructure.Body.EncryptedData.CipherData.CipherValue.Contents), "\t", "", -1))
+		ciphertextb64 := []byte(strings.Replace(string(cipheredText), "\t", "", -1))
 		// base64 decoding after the tabs were deleted. the comments concerning buffer and n mistake value are applicable here as well (see above)
 		ciphertext := make([]byte, base64.StdEncoding.DecodedLen(len(ciphertextb64)))
 		n, err = base64.StdEncoding.Decode(ciphertext, ciphertextb64)
@@ -169,4 +184,24 @@ func ProcessXML(byteXML []byte) (string,[]byte,*rsa.PublicKey,string,error) {
 		idx:= strings.LastIndex(string(ciphertext),">")
 		message = string(ciphertext[:idx+1])
 		return
+	}
+	func getNecessaryFields(byteXML []byte) (digest []byte, signature []byte, certificate []byte, aesKey []byte, cipherText []byte) {
+		r := regexp.MustCompile(`<ds:DigestValue((.|\r\n)*?)</ds:DigestValue>`)
+		res := r.FindAll(byteXML,-1)
+		digest = getTokenContent(res[0])
+		r = regexp.MustCompile(`<ds:SignatureValue((.|\r\n)*?)</ds:SignatureValue>`)
+		res = r.FindAll(byteXML,-1)
+		signature = getTokenContent(res[0])
+
+		r = regexp.MustCompile(`<wsse:BinarySecurityToken((.|\r\n)*?)</wsse:BinarySecurityToken>`)
+		res = r.FindAll(byteXML,-1)
+		certificate = getTokenContent(res[0])
+		r = regexp.MustCompile(`<xenc:CipherValue((.|\r\n)*?)</xenc:CipherValue>`)
+		res = r.FindAll(byteXML,-1)
+		aesKey = getTokenContent(res[0])
+		cipherText = getTokenContent(res[1])
+		return
+	}
+	func getTokenContent(token []byte) []byte {
+		return []byte(strings.Replace(strings.Split(strings.Split(string(token),">")[1],"<")[0],"\r\n","",-1))
 	}

@@ -26,7 +26,6 @@ func ConstructResponse(respText string, signature string,rsaPublicKey *rsa.Publi
 	var soapBodyDigest []byte
 	var signatureResp []byte
 	var aesKeyEncryptedB64 string
-	var soapBodyEncrypted []byte
 	// let's construct envelope of the response
 	soapResp := SoapEnvelope2{}
 	soapResp.Xmlns = "http://schemas.xmlsoap.org/soap/envelope/"
@@ -57,7 +56,7 @@ func ConstructResponse(respText string, signature string,rsaPublicKey *rsa.Publi
 	// also we will put the digest from it inside the signed info
 	sigConf,digestFromSigConf := processSigConf(signature)
 	// now encrypt message body
-	soapBodyEncrypted, soapBodyDigest, aesKeyEncryptedB64,soapBody,EncrDataByte := encryptMsg(soapResp,rsaPublicKey,respText)
+	soapBodyDigest, aesKeyEncryptedB64,soapBody,EncrDataByte := encryptMsg(soapResp,rsaPublicKey,respText)
 	soapBody.Contents = EncrDataByte
 	soapResp.Body = soapBody
 	// fill in all rematinin fields of the signed info and then sign it
@@ -113,7 +112,7 @@ func processSigConf(signature string) (sigConf SignatureConfirmation, digestFrom
 	digestFromSigConf = h.Sum(nil)
 	return
 }
-func encryptMsg(soapResp SoapEnvelope2,rsaPublicKey *rsa.PublicKey,respText string) (soapBodyEncrypted []byte ,soapBodyDigest []byte, aesKeyEncryptedB64 string, soapBody SoapBody2,EncrDataByte []byte) {
+func encryptMsg(soapResp SoapEnvelope2,rsaPublicKey *rsa.PublicKey,respText string) (soapBodyDigest []byte, aesKeyEncryptedB64 string, soapBody SoapBody2,EncrDataByte []byte) {
 	aesKey := make([]byte, 16)
 	rand.Read(aesKey)
 	aesKeyEncrypted,_ := rsa.EncryptPKCS1v15(crytporand.Reader,rsaPublicKey,aesKey)
@@ -127,7 +126,7 @@ func encryptMsg(soapResp SoapEnvelope2,rsaPublicKey *rsa.PublicKey,respText stri
 	h2.Write(soapBodyByteCanoned)
 	soapBodyDigest = h2.Sum(nil)
 	soapBodyEncryptedByte,_ := encrypt(aesKey,respText)
-	soapBodyEncrypted = []byte(soapBodyEncryptedByte)
+	soapBodyEncrypted := []byte(soapBodyEncryptedByte)
 	EncrData := EncryptedData2{}
 	EncrData.Xmlns = "http://www.w3.org/2001/04/xmlenc#"
 	EncrData.Id = soapResp.Header.Security.EncryptedKey.ReferenceList.DataReference.URI[1:]
