@@ -1,7 +1,7 @@
 	package main
 
 import (
-	"./MicroServs"
+	"./microServs"
 	"runtime"
 )
 func main() {
